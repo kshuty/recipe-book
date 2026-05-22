@@ -1,0 +1,2211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>My Recipe Book</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<!-- mammoth for .docx parsing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<!-- pdf.js for .pdf parsing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root {
+    --cream: #faf8f3;
+    --warm-white: #fff9f2;
+    --ink: #2c2416;
+    --ink-light: #6b5e4e;
+    --accent: #b06a3a;
+    --accent-light: #e8c9a8;
+    --divider: #e5ddd0;
+    --tag-bg: #f0ebe1;
+    --shadow: rgba(44,36,22,0.08);
+    --radius: 12px;
+    --tab-h: 56px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Lato', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  /* ── HEADER ── */
+  .app-header {
+    background: var(--warm-white);
+    border-bottom: 1px solid var(--divider);
+    padding: 18px 20px 14px;
+    text-align: center;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .app-header h1 { font-family: 'Playfair Display', serif; font-size: 1.5rem; color: var(--ink); letter-spacing: 0.01em; }
+  .app-header h1 span { color: var(--accent); font-style: italic; }
+
+  /* ── TAB BAR ── */
+  .tab-bar {
+    display: flex; background: var(--warm-white);
+    border-bottom: 2px solid var(--divider);
+    position: sticky; top: 61px; z-index: 99;
+  }
+  .tab-btn {
+    flex: 1; height: var(--tab-h); border: none; background: transparent;
+    font-family: 'Lato', sans-serif; font-size: 0.8rem; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-light);
+    cursor: pointer; transition: color 0.2s, border-color 0.2s;
+    border-bottom: 3px solid transparent; margin-bottom: -2px;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── PANELS ── */
+  .panel { display: none; padding: 20px 16px 100px; animation: fadeIn 0.2s ease; }
+  .panel.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+
+  /* ── SEARCH ── */
+  .search-wrap { position: relative; margin-bottom: 20px; }
+  .search-wrap input {
+    width: 100%; padding: 12px 16px 12px 40px;
+    border: 1.5px solid var(--divider); border-radius: 24px;
+    background: var(--warm-white); font-family: 'Lato', sans-serif;
+    font-size: 0.95rem; color: var(--ink); outline: none; transition: border-color 0.2s;
+  }
+  .search-wrap input:focus { border-color: var(--accent-light); }
+  .search-wrap::before {
+    content: "🔍"; position: absolute; left: 13px; top: 50%;
+    transform: translateY(-50%); font-size: 0.85rem; pointer-events: none;
+  }
+
+  /* ── CATEGORY ACCORDION ── */
+  .category-block { margin-bottom: 6px; }
+  .cat-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 13px 16px; background: var(--warm-white);
+    border: 1.5px solid var(--divider); border-radius: var(--radius);
+    cursor: pointer; user-select: none; transition: background 0.15s;
+  }
+  .cat-header:active { background: var(--tag-bg); }
+  .cat-header .cat-name { font-family: 'Playfair Display', serif; font-size: 1rem; color: var(--ink); }
+  .cat-arrow { font-size: 0.7rem; color: var(--ink-light); transition: transform 0.25s; }
+  .cat-header.open .cat-arrow { transform: rotate(180deg); }
+  .cat-body { display: none; padding: 6px 0 4px 0; }
+  .cat-body.open { display: block; }
+  .subcat-group { margin: 4px 0 4px 8px; }
+  .subcat-label {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--accent); padding: 6px 10px 3px;
+  }
+  .recipe-link {
+    display: block; padding: 10px 18px; font-size: 0.9rem; color: var(--ink-light);
+    cursor: pointer; border-left: 2px solid var(--accent-light);
+    margin: 3px 0 3px 8px; border-radius: 0 8px 8px 0;
+    background: var(--warm-white); transition: background 0.15s, color 0.15s;
+  }
+  .recipe-link:active, .recipe-link:hover { background: var(--accent-light); color: var(--ink); }
+
+  /* ── SEARCH RESULTS ── */
+  .search-results { margin-bottom: 18px; }
+  .search-result-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; background: var(--warm-white);
+    border: 1.5px solid var(--accent-light); border-radius: 10px;
+    margin-bottom: 6px; cursor: pointer; transition: background 0.15s;
+  }
+  .search-result-item:active { background: var(--accent-light); }
+  .sri-title { font-size: 0.9rem; color: var(--ink); font-weight: 400; }
+  .sri-cat { font-size: 0.75rem; color: var(--ink-light); }
+
+  /* ── RECIPE DETAIL VIEW (true full screen) ── */
+  #recipe-detail-view {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--cream);
+    z-index: 500;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  #recipe-detail-view.open { display: block; animation: slideInRight 0.22s ease; }
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(28px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .detail-header {
+    background: var(--warm-white);
+    border-bottom: 1px solid var(--divider);
+    padding: 16px 16px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .detail-back {
+    background: none; border: none; cursor: pointer;
+    font-size: 1.4rem; color: var(--accent); padding: 6px 8px;
+    border-radius: 10px; transition: background 0.15s;
+    flex-shrink: 0; line-height: 1;
+  }
+  .detail-back:active { background: var(--accent-light); }
+  .detail-header-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.05rem; color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .detail-body { padding: 28px 20px 100px; max-width: 600px; margin: 0 auto; }
+
+  /* ── RECIPE CARD (used in detail view + previews) ── */
+  .recipe-card {
+    background: var(--warm-white);
+    border: 1.5px solid var(--divider);
+    border-radius: var(--radius);
+    padding: 20px 18px;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 8px var(--shadow);
+  }
+  .recipe-card .r-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.35rem; font-weight: 600; color: var(--ink); margin-bottom: 14px;
+  }
+  .r-divider { border: none; border-top: 1px solid var(--divider); margin: 12px 0; }
+  .r-section-label {
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 6px;
+  }
+  .r-content { font-size: 0.92rem; line-height: 1.65; color: var(--ink); white-space: pre-wrap; }
+  .empty-cat { font-size: 0.85rem; color: var(--ink-light); padding: 6px 2px; font-style: italic; }
+
+  /* ── INGREDIENTS BULLETS ── */
+  .r-ingredients-list { list-style: none; padding: 0; margin: 0; }
+  .r-ingredients-list li {
+    display: flex; align-items: flex-start; gap: 9px;
+    font-size: 0.92rem; line-height: 1.6; color: var(--ink); padding: 2px 0;
+  }
+  .r-ingredients-list li::before {
+    content: "•"; color: var(--accent); font-size: 1.1rem; line-height: 1.45; flex-shrink: 0;
+  }
+
+  /* ── DIRECTIONS NUMBERS ── */
+  .r-directions-list { list-style: none; padding: 0; margin: 0; counter-reset: steps; }
+  .r-directions-list li {
+    display: flex; align-items: flex-start; gap: 11px;
+    font-size: 0.92rem; line-height: 1.65; color: var(--ink);
+    padding: 4px 0; counter-increment: steps;
+  }
+  .r-directions-list li::before {
+    content: counter(steps);
+    min-width: 22px; height: 22px;
+    background: var(--accent-light); color: var(--accent);
+    border-radius: 50%; font-size: 0.72rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 2px;
+  }
+
+  /* ── NOTES STARS ── */
+  .r-notes-list { list-style: none; padding: 0; margin: 0; }
+  .r-notes-list li {
+    display: flex; align-items: flex-start; gap: 9px;
+    font-size: 0.92rem; line-height: 1.6; color: var(--ink); padding: 3px 0;
+  }
+  .r-notes-list li::before {
+    content: "✦"; color: var(--accent); font-size: 0.65rem;
+    line-height: 1.9; flex-shrink: 0;
+  }
+
+  /* ── FORMS ── */
+  .form-section-title {
+    font-family: 'Playfair Display', serif; font-size: 1.1rem;
+    color: var(--ink); margin-bottom: 14px;
+  }
+  .upload-btn {
+    display: block; width: 100%; padding: 13px;
+    background: var(--warm-white); border: 1.5px dashed var(--accent-light);
+    border-radius: var(--radius); text-align: center;
+    font-family: 'Lato', sans-serif; font-size: 0.9rem; font-weight: 700;
+    color: var(--accent); cursor: pointer; letter-spacing: 0.04em;
+    margin-bottom: 20px; transition: background 0.15s;
+  }
+  .upload-btn:active { background: var(--tag-bg); }
+
+  /* ── SUBCAT FIELD SLIDE-IN ── */
+  .subcat-field-wrap {
+    overflow: hidden; max-height: 0; opacity: 0;
+    transition: max-height 0.3s ease, opacity 0.25s ease;
+  }
+  .subcat-field-wrap.visible { max-height: 120px; opacity: 1; }
+
+  /* ── UPLOAD MODAL ── */
+  .upload-modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(44,36,22,0.35); z-index: 200;
+    align-items: flex-end; justify-content: center;
+  }
+  .upload-modal-overlay.open { display: flex; }
+  .upload-modal {
+    background: var(--warm-white); border-radius: 20px 20px 0 0;
+    padding: 24px 20px 36px; width: 100%; max-width: 480px;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .upload-modal h3 { font-family: 'Playfair Display', serif; font-size: 1.1rem; margin-bottom: 16px; color: var(--ink); }
+  .modal-textarea {
+    width: 100%; height: 130px; padding: 12px;
+    border: 1.5px solid var(--divider); border-radius: 10px;
+    font-family: 'Lato', sans-serif; font-size: 0.9rem; color: var(--ink);
+    background: var(--cream); resize: none; outline: none; margin-bottom: 12px;
+  }
+  .modal-or { text-align: center; font-size: 0.8rem; color: var(--ink-light); margin: 4px 0 10px; }
+  .file-label {
+    display: block; width: 100%; padding: 10px;
+    background: var(--tag-bg); border: 1.5px solid var(--divider);
+    border-radius: 10px; text-align: center; font-size: 0.85rem;
+    color: var(--ink-light); cursor: pointer; margin-bottom: 6px;
+  }
+  .file-format-note { font-size: 0.72rem; color: var(--ink-light); text-align: center; margin-bottom: 14px; opacity: 0.8; }
+  .modal-btns { display: flex; gap: 10px; }
+  .btn-parse {
+    flex: 1; padding: 12px; background: var(--accent); border: none; border-radius: 10px;
+    color: #fff; font-family: 'Lato', sans-serif; font-weight: 700; font-size: 0.9rem;
+    cursor: pointer; letter-spacing: 0.05em;
+  }
+  .btn-cancel {
+    padding: 12px 18px; background: var(--tag-bg); border: none; border-radius: 10px;
+    color: var(--ink-light); font-family: 'Lato', sans-serif; font-weight: 700;
+    font-size: 0.9rem; cursor: pointer;
+  }
+  .parsing-indicator {
+    text-align: center; font-size: 0.82rem; color: var(--ink-light);
+    padding: 6px 0 0; display: none;
+  }
+
+  label.field-label {
+    display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--ink-light); margin-bottom: 5px; margin-top: 16px;
+  }
+  input.field-input, select.field-select, textarea.field-ta {
+    width: 100%; padding: 11px 13px; border: 1.5px solid var(--divider); border-radius: 10px;
+    font-family: 'Lato', sans-serif; font-size: 0.92rem; color: var(--ink);
+    background: var(--warm-white); outline: none; transition: border-color 0.2s;
+    -webkit-appearance: none; appearance: none;
+  }
+  input.field-input:focus, select.field-select:focus, textarea.field-ta:focus { border-color: var(--accent-light); }
+  textarea.field-ta { resize: none; min-height: 100px; }
+  select.field-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b5e4e' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 13px center; padding-right: 36px;
+  }
+
+  .btn-add-recipe {
+    display: block; width: 100%; padding: 14px;
+    background: var(--accent); border: none; border-radius: var(--radius);
+    color: #fff; font-family: 'Playfair Display', serif; font-size: 1rem; font-style: italic;
+    cursor: pointer; letter-spacing: 0.03em; transition: opacity 0.2s;
+    box-shadow: 0 4px 14px rgba(176,106,58,0.25);
+  }
+  .btn-add-recipe:active { opacity: 0.85; }
+  .btn-add-recipe.top { margin-bottom: 20px; margin-top: 0; }
+  .btn-add-recipe.bottom { margin-top: 22px; }
+
+  /* ── LIVE PREVIEW ── */
+  .preview-wrap { margin-top: 28px; padding-top: 20px; border-top: 1.5px solid var(--divider); }
+  .preview-label {
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--ink-light); margin-bottom: 12px;
+  }
+
+  /* ── EDIT TAB ── */
+  .edit-recipe-list { margin-top: 14px; }
+  .edit-recipe-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 14px; background: var(--warm-white); border: 1.5px solid var(--divider);
+    border-radius: 10px; margin-bottom: 8px; cursor: pointer; transition: background 0.15s;
+  }
+  .edit-recipe-item:active { background: var(--tag-bg); }
+  .eri-name { font-size: 0.9rem; color: var(--ink); }
+  .eri-arrow { font-size: 0.75rem; color: var(--ink-light); }
+
+  .btn-save {
+    display: block; width: 100%; margin-top: 22px; padding: 14px;
+    background: var(--ink); border: none; border-radius: var(--radius);
+    color: var(--cream); font-family: 'Playfair Display', serif; font-size: 1rem; font-style: italic;
+    cursor: pointer; letter-spacing: 0.03em; transition: opacity 0.2s;
+  }
+  .btn-save:active { opacity: 0.8; }
+  .btn-delete {
+    display: block; width: 100%; margin-top: 10px; padding: 13px;
+    background: transparent; border: 1.5px solid #c0392b; border-radius: var(--radius);
+    color: #c0392b; font-family: 'Playfair Display', serif; font-size: 0.95rem; font-style: italic;
+    cursor: pointer; letter-spacing: 0.03em; transition: background 0.2s, color 0.2s;
+  }
+  .btn-delete:active { background: #fdecea; }
+  .btn-back-link {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.8rem; color: var(--ink-light); cursor: pointer; margin-bottom: 16px; padding: 6px 0;
+  }
+  .btn-back-link:active { color: var(--accent); }
+
+
+  /* ── KITCHEN REFERENCE BUTTON ── */
+  .ref-btn {
+    position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer;
+    color: var(--ink-light); padding: 6px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, color 0.15s;
+  }
+  .ref-btn:active, .ref-btn:hover { background: var(--accent-light); color: var(--accent); }
+
+  /* ── KITCHEN REFERENCE PAGE ── */
+  #reference-view {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100%; height: 100%;
+    background: var(--cream);
+    z-index: 600;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  #reference-view.open { display: block; animation: slideInRight 0.22s ease; }
+  .ref-header {
+    background: var(--warm-white);
+    border-bottom: 1px solid var(--divider);
+    padding: 16px 16px 14px;
+    display: flex; align-items: center; gap: 12px;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .ref-back {
+    background: none; border: none; cursor: pointer;
+    font-size: 1.4rem; color: var(--accent); padding: 6px 8px;
+    border-radius: 10px; transition: background 0.15s; flex-shrink: 0; line-height: 1;
+  }
+  .ref-back:active { background: var(--accent-light); }
+  .ref-header-title {
+    font-family: 'Playfair Display', serif; font-size: 1.05rem; color: var(--ink);
+  }
+  .ref-body { padding: 24px 18px 100px; }
+  .ref-section {
+    margin-bottom: 28px;
+  }
+  .ref-section-title {
+    font-family: 'Playfair Display', serif; font-size: 1.15rem; color: var(--accent);
+    margin-bottom: 12px; padding-bottom: 6px;
+    border-bottom: 1.5px solid var(--accent-light);
+  }
+  .ref-subsection-title {
+    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--ink-light); margin: 14px 0 7px;
+  }
+  .ref-table {
+    width: 100%; border-collapse: collapse; font-size: 0.88rem;
+  }
+  .ref-table th {
+    text-align: left; padding: 7px 10px;
+    background: var(--tag-bg); color: var(--ink-light);
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .ref-table th:first-child { border-radius: 8px 0 0 8px; }
+  .ref-table th:last-child  { border-radius: 0 8px 8px 0; }
+  .ref-table td {
+    padding: 8px 10px; border-bottom: 1px solid var(--divider);
+    color: var(--ink); vertical-align: top; line-height: 1.45;
+  }
+  .ref-table tr:last-child td { border-bottom: none; }
+  .ref-table tr:nth-child(even) td { background: rgba(250,248,243,0.6); }
+  .ref-card {
+    background: var(--warm-white); border: 1.5px solid var(--divider);
+    border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px;
+  }
+  .ref-card-title {
+    font-weight: 700; font-size: 0.9rem; color: var(--ink); margin-bottom: 5px;
+  }
+  .ref-card-body { font-size: 0.87rem; color: var(--ink-light); line-height: 1.55; }
+  .ref-tag {
+    display: inline-block; background: var(--accent-light); color: var(--accent);
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+    padding: 2px 8px; border-radius: 20px; margin-bottom: 6px;
+  }
+
+
+  /* ── REORDER MODE ── */
+  .reorder-hint {
+    font-size: 0.78rem; color: var(--ink-light); text-align: center;
+    padding: 6px 0 10px; font-style: italic;
+  }
+  .btn-reorder-toggle {
+    display: block; width: 100%; padding: 10px; margin-top: 10px;
+    background: var(--tag-bg); border: 1.5px solid var(--divider);
+    border-radius: 10px; font-family: 'Lato', sans-serif;
+    font-size: 0.82rem; font-weight: 700; color: var(--ink-light);
+    letter-spacing: 0.05em; cursor: pointer; text-align: center;
+    transition: background 0.15s;
+  }
+  .btn-reorder-toggle.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent-light); }
+  .edit-recipe-item.dragging { opacity: 0.4; }
+  .edit-recipe-item.drag-over { border-color: var(--accent); background: var(--accent-light); }
+  .drag-handle {
+    display: none; color: var(--ink-light); font-size: 1.1rem;
+    padding: 0 8px 0 0; cursor: grab; flex-shrink: 0; touch-action: none;
+  }
+  .reorder-mode .drag-handle { display: flex; align-items: center; }
+  .reorder-mode .eri-arrow { display: none; }
+  .reorder-mode .edit-recipe-item { cursor: default; }
+
+  /* ── SCALE WIDGET in detail view ── */
+  .scale-bar {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--warm-white); border: 1.5px solid var(--divider);
+    border-radius: 40px; padding: 8px 14px;
+    margin: 0 0 18px;
+  }
+  .scale-label {
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink-light); white-space: nowrap;
+    margin-right: 2px;
+  }
+  .scale-input {
+    width: 52px; text-align: center; border: 1.5px solid var(--divider);
+    border-radius: 8px; padding: 4px 4px; font-family: 'Playfair Display', serif;
+    font-size: 1rem; font-weight: 600; color: var(--accent);
+    background: var(--cream); outline: none;
+    -moz-appearance: textfield; appearance: textfield;
+    transition: border-color 0.2s;
+  }
+  .scale-input:focus { border-color: var(--accent); }
+  .scale-input::-webkit-outer-spin-button,
+  .scale-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .scale-x { font-size: 0.9rem; color: var(--ink-light); margin-left: -4px; }
+  .scale-btns { display: flex; gap: 6px; }
+  .scale-btn {
+    width: 32px; height: 32px; border-radius: 50%; border: none;
+    font-size: 0.85rem; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .scale-btn.minus { background: var(--tag-bg); color: var(--ink-light); }
+  .scale-btn.plus  { background: var(--accent); color: #fff; }
+  .scale-btn:active { opacity: 0.7; }
+  .scale-reset {
+    font-size: 0.72rem; color: var(--ink-light); text-decoration: underline;
+    cursor: pointer; white-space: nowrap; background: none; border: none; padding: 0;
+    font-family: 'Lato', sans-serif; margin-left: auto;
+  }
+  .scale-reset:active { color: var(--accent); }
+
+  /* ── SECTION LABEL LINES (lines starting with #) ── */
+  .r-section-line {
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--accent);
+    padding: 10px 0 3px; display: block;
+  }
+  /* First section-line needs less top padding */
+  .r-ingredients-list li:first-child .r-section-line,
+  .r-directions-list li:first-child .r-section-line { padding-top: 2px; }
+  /* Hide the bullet/number for label lines */
+  li.r-label-item { list-style: none; }
+  li.r-label-item::before { display: none !important; }
+  .r-ingredients-list li.r-label-item,
+  .r-directions-list li.r-label-item  { padding: 0; gap: 0; }
+
+  /* ── FIELD HINT (below textarea) ── */
+  .field-hint {
+    font-size: 0.72rem; color: var(--ink-light); margin-top: 4px;
+    opacity: 0.75; font-style: italic;
+  }
+
+  /* ── REFERENCE EDIT MODE ── */
+  .ref-edit-btn {
+    background: none; border: 1.5px solid var(--divider); border-radius: 8px;
+    padding: 5px 10px; font-family: 'Lato', sans-serif; font-size: 0.75rem;
+    font-weight: 700; color: var(--ink-light); cursor: pointer; letter-spacing: 0.05em;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .ref-edit-btn.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent-light); }
+  .ref-edit-btn:active { opacity: 0.75; }
+
+  /* section header row in edit mode */
+  .ref-section-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1.5px solid var(--accent-light);
+  }
+  .ref-section-row .ref-section-title { margin: 0; border: none; padding: 0; }
+  .ref-section-actions { display: flex; gap: 6px; }
+  .ref-section-action-btn {
+    background: none; border: none; cursor: pointer; font-size: 0.85rem;
+    color: var(--ink-light); padding: 3px 5px; border-radius: 6px;
+    transition: background 0.15s;
+  }
+  .ref-section-action-btn:active { background: var(--tag-bg); }
+
+  /* custom entry cards in edit mode */
+  .ref-custom-card {
+    background: var(--warm-white); border: 1.5px solid var(--divider);
+    border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px;
+    position: relative;
+  }
+  .ref-custom-card .ref-card-title { font-weight: 700; font-size: 0.9rem; color: var(--ink); margin-bottom: 5px; }
+  .ref-custom-card .ref-card-body  { font-size: 0.87rem; color: var(--ink-light); line-height: 1.55; }
+  .ref-delete-entry {
+    position: absolute; top: 10px; right: 10px;
+    background: none; border: none; cursor: pointer;
+    font-size: 0.9rem; color: var(--ink-light); padding: 2px 5px;
+    border-radius: 6px; transition: background 0.15s, color 0.15s;
+  }
+  .ref-delete-entry:active { background: #fdecea; color: #c0392b; }
+
+  /* add entry form inside a section */
+  .ref-add-form {
+    display: none; background: var(--tag-bg); border-radius: var(--radius);
+    padding: 14px; margin-top: 10px;
+  }
+  .ref-add-form.open { display: block; }
+  .ref-add-input {
+    width: 100%; padding: 9px 11px; border: 1.5px solid var(--divider);
+    border-radius: 8px; font-family: 'Lato', sans-serif; font-size: 0.88rem;
+    color: var(--ink); background: var(--warm-white); outline: none;
+    margin-bottom: 8px; transition: border-color 0.2s;
+  }
+  .ref-add-input:focus { border-color: var(--accent-light); }
+  .ref-add-ta {
+    width: 100%; padding: 9px 11px; border: 1.5px solid var(--divider);
+    border-radius: 8px; font-family: 'Lato', sans-serif; font-size: 0.88rem;
+    color: var(--ink); background: var(--warm-white); outline: none;
+    resize: none; min-height: 70px; margin-bottom: 8px;
+    transition: border-color 0.2s;
+  }
+  .ref-add-ta:focus { border-color: var(--accent-light); }
+  .ref-add-row { display: flex; gap: 8px; }
+  .ref-add-save {
+    flex: 1; padding: 9px; background: var(--accent); border: none; border-radius: 8px;
+    color: #fff; font-family: 'Lato', sans-serif; font-weight: 700; font-size: 0.82rem;
+    cursor: pointer; letter-spacing: 0.04em;
+  }
+  .ref-add-cancel {
+    padding: 9px 14px; background: var(--warm-white); border: 1.5px solid var(--divider);
+    border-radius: 8px; font-family: 'Lato', sans-serif; font-size: 0.82rem;
+    color: var(--ink-light); cursor: pointer; font-weight: 700;
+  }
+  /* add new section button */
+  .ref-add-section-btn {
+    display: none; width: 100%; padding: 12px; margin-top: 8px;
+    background: var(--warm-white); border: 1.5px dashed var(--accent-light);
+    border-radius: var(--radius); font-family: 'Lato', sans-serif; font-size: 0.85rem;
+    font-weight: 700; color: var(--accent); cursor: pointer; letter-spacing: 0.04em;
+    text-align: center; transition: background 0.15s;
+  }
+  .ref-add-section-btn.visible { display: block; }
+  .ref-add-section-btn:active { background: var(--accent-light); }
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--ink); color: var(--cream);
+    padding: 10px 22px; border-radius: 24px; font-size: 0.85rem;
+    font-family: 'Lato', sans-serif; z-index: 400;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    opacity: 0; white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+  #edit-form-wrap { display: none; }
+  #edit-list-wrap { display: block; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div style="position:relative;display:flex;align-items:center;justify-content:center;">
+    <h1>My <span>Recipe</span> Book</h1>
+    <button class="ref-btn" onclick="openReference()" title="Kitchen Reference" aria-label="Kitchen Reference">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    </button>
+  </div>
+</header>
+
+<nav class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('toc')">Contents</button>
+  <button class="tab-btn" onclick="switchTab('add')">Add Recipe</button>
+  <button class="tab-btn" onclick="switchTab('edit')">Edit</button>
+</nav>
+
+<!-- ════════════════════════════════
+     RECIPE DETAIL VIEW (overlay)
+═══════════════════════════════════ -->
+<div id="recipe-detail-view">
+  <div class="detail-header">
+    <button class="detail-back" onclick="closeDetail()">←</button>
+    <div class="detail-header-title" id="detail-header-title"></div>
+    <button class="ref-btn" onclick="openReference('detail')" title="Kitchen Reference" aria-label="Kitchen Reference" style="margin-left:auto;flex-shrink:0;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    </button>
+  </div>
+  <div style="padding: 18px 20px 0; max-width:600px; margin:0 auto;">
+    <div class="scale-bar" id="scale-bar" style="display:none;">
+      <span class="scale-label">Scale</span>
+      <button class="scale-btn minus" onclick="changeScale(-1)">−</button>
+      <input class="scale-input" id="scale-input" type="number" min="0.1" step="0.25"
+             value="1" inputmode="decimal"
+             onchange="applyScaleInput()"
+             onkeydown="if(event.key==='Enter'){this.blur();applyScaleInput();}">
+      <span class="scale-x">×</span>
+      <button class="scale-btn plus"  onclick="changeScale(+1)">+</button>
+      <button class="scale-reset" onclick="resetScale()">reset</button>
+    </div>
+  </div>
+  <div class="detail-body" id="detail-body"></div>
+</div>
+
+<!-- ════════════════════════════════
+     TAB 1 — TABLE OF CONTENTS
+═══════════════════════════════════ -->
+<div id="panel-toc" class="panel active">
+  <div class="search-wrap">
+    <input type="text" id="toc-search" placeholder="Search recipes…" oninput="handleTocSearch(this.value)">
+  </div>
+  <div id="toc-search-results" class="search-results" style="display:none;"></div>
+  <div id="toc-accordion"></div>
+</div>
+
+<!-- ════════════════════════════════
+     TAB 2 — ADD RECIPE
+═══════════════════════════════════ -->
+<div id="panel-add" class="panel">
+  <button class="upload-btn" onclick="openUploadModal()">📄 Upload Existing Recipe</button>
+
+  <!-- ADD RECIPE BUTTON — TOP -->
+  <button class="btn-add-recipe top" onclick="addRecipe()">Add Recipe</button>
+
+  <div class="form-section-title">New Recipe</div>
+
+  <label class="field-label" for="add-title">Title</label>
+  <input class="field-input" id="add-title" type="text" placeholder="Recipe name" oninput="updateAddPreview()">
+
+  <label class="field-label" for="add-cat">Category</label>
+  <select class="field-select" id="add-cat" onchange="onAddCatChange()">
+    <option value="">— Choose a category —</option>
+    <option value="Appetizers & Snacks">Appetizers &amp; Snacks</option>
+    <option value="Soups & Salads">Soups &amp; Salads</option>
+    <option value="Main Courses">Main Courses</option>
+    <option value="Side Dishes">Side Dishes</option>
+    <option value="Desserts & Baking">Desserts &amp; Baking</option>
+    <option value="Beverages">Beverages</option>
+    <option value="Everything Else">Everything Else</option>
+  </select>
+
+  <div class="subcat-field-wrap" id="add-subcat-wrap">
+    <label class="field-label" for="add-subcat">Sub-category</label>
+    <select class="field-select" id="add-subcat" onchange="updateAddPreview()">
+      <option value="">— Choose a sub-category —</option>
+    </select>
+  </div>
+
+  <label class="field-label" for="add-ingredients">Ingredients</label>
+  <textarea class="field-ta" id="add-ingredients" placeholder="List each ingredient…" rows="5" oninput="updateAddPreview()"></textarea>
+  <div class="field-hint">Start a line with # to add a plain label (e.g. # For the sauce)</div>
+
+  <label class="field-label" for="add-directions">Directions</label>
+  <textarea class="field-ta" id="add-directions" placeholder="Step-by-step instructions…" rows="6" oninput="updateAddPreview()"></textarea>
+  <div class="field-hint">Start a line with # to add a plain label (e.g. # Make the dough)</div>
+
+  <label class="field-label" for="add-notes">Notes <span style="font-weight:300;text-transform:none;letter-spacing:0">(optional)</span></label>
+  <textarea class="field-ta" id="add-notes" placeholder="Tips, variations, storage… (one per line)" rows="3" oninput="updateAddPreview()"></textarea>
+
+  <div class="preview-wrap">
+    <div class="preview-label">Live Preview</div>
+    <div id="add-preview"></div>
+  </div>
+
+  <!-- ADD RECIPE BUTTON — BOTTOM -->
+  <button class="btn-add-recipe bottom" onclick="addRecipe()">Add Recipe</button>
+</div>
+
+<!-- ════════════════════════════════
+     TAB 3 — EDIT
+═══════════════════════════════════ -->
+<div id="panel-edit" class="panel">
+  <div id="edit-list-wrap">
+    <label class="field-label" for="edit-cat-select">Category</label>
+    <select class="field-select" id="edit-cat-select" onchange="onEditCatSelectChange()">
+      <option value="">— Choose a category —</option>
+      <option value="Appetizers & Snacks">Appetizers &amp; Snacks</option>
+      <option value="Soups & Salads">Soups &amp; Salads</option>
+      <option value="Main Courses">Main Courses</option>
+      <option value="Side Dishes">Side Dishes</option>
+      <option value="Desserts & Baking">Desserts &amp; Baking</option>
+      <option value="Beverages">Beverages</option>
+      <option value="Everything Else">Everything Else</option>
+    </select>
+
+    <div class="subcat-field-wrap" id="edit-subcat-filter-wrap">
+      <label class="field-label" for="edit-subcat-filter">Sub-category</label>
+      <select class="field-select" id="edit-subcat-filter" onchange="loadEditList()">
+        <option value="">— All sub-categories —</option>
+      </select>
+    </div>
+
+    <div id="reorder-hint" class="reorder-hint" style="display:none;">Hold ☰ and drag to reorder</div>
+    <button class="btn-reorder-toggle" id="reorder-toggle-btn" onclick="toggleReorderMode()" style="display:none;">⇅ Reorder Recipes</button>
+    <div class="edit-recipe-list" id="edit-recipe-list"></div>
+  </div>
+
+  <div id="edit-form-wrap">
+    <div class="btn-back-link" onclick="closeEditForm()">← Back to list</div>
+
+    <label class="field-label" for="edit-title">Title</label>
+    <input class="field-input" id="edit-title" type="text" oninput="updateEditPreview()">
+
+    <label class="field-label" for="edit-cat">Category</label>
+    <select class="field-select" id="edit-cat" onchange="onEditCatChange()">
+      <option value="Appetizers & Snacks">Appetizers &amp; Snacks</option>
+      <option value="Soups & Salads">Soups &amp; Salads</option>
+      <option value="Main Courses">Main Courses</option>
+      <option value="Side Dishes">Side Dishes</option>
+      <option value="Desserts & Baking">Desserts &amp; Baking</option>
+      <option value="Beverages">Beverages</option>
+      <option value="Everything Else">Everything Else</option>
+    </select>
+
+    <div class="subcat-field-wrap" id="edit-subcat-wrap">
+      <label class="field-label" for="edit-subcat">Sub-category</label>
+      <select class="field-select" id="edit-subcat" onchange="updateEditPreview()">
+        <option value="">— Choose a sub-category —</option>
+      </select>
+    </div>
+
+    <label class="field-label" for="edit-ingredients">Ingredients</label>
+    <textarea class="field-ta" id="edit-ingredients" rows="5" oninput="updateEditPreview()"></textarea>
+    <div class="field-hint">Start a line with # to add a plain label (e.g. # For the sauce)</div>
+
+    <label class="field-label" for="edit-directions">Directions</label>
+    <textarea class="field-ta" id="edit-directions" rows="6" oninput="updateEditPreview()"></textarea>
+    <div class="field-hint">Start a line with # to add a plain label (e.g. # Make the dough)</div>
+
+    <label class="field-label" for="edit-notes">Notes <span style="font-weight:300;text-transform:none;letter-spacing:0">(optional)</span></label>
+    <textarea class="field-ta" id="edit-notes" rows="3" oninput="updateEditPreview()"></textarea>
+
+    <button class="btn-save" onclick="saveEdit()">Save Changes</button>
+    <button class="btn-delete" onclick="confirmDelete()">Delete Recipe</button>
+
+    <div class="preview-wrap">
+      <div class="preview-label">Live Preview</div>
+      <div id="edit-preview"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     DELETE CONFIRMATION MODAL
+═══════════════════════════════════ -->
+<div class="upload-modal-overlay" id="delete-overlay" onclick="deleteOverlayClose(event)">
+  <div class="upload-modal" style="padding-bottom:28px;">
+    <h3>Delete Recipe?</h3>
+    <p style="font-size:0.9rem;color:var(--ink-light);margin-bottom:20px;line-height:1.5">
+      "<span id="delete-recipe-name"></span>" will be permanently removed. This can't be undone.
+    </p>
+    <div class="modal-btns">
+      <button class="btn-parse" style="background:#c0392b;" onclick="deleteRecipe()">Delete</button>
+      <button class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     KITCHEN REFERENCE VIEW
+═══════════════════════════════════ -->
+<div id="reference-view">
+  <div class="ref-header">
+    <button class="ref-back" id="ref-back-btn" onclick="closeReference()">←</button>
+    <div class="ref-header-title">Kitchen Reference</div>
+    <button class="ref-edit-btn" id="ref-edit-toggle" onclick="toggleRefEditMode()" style="margin-left:auto;flex-shrink:0;">Edit</button>
+  </div>
+  <div class="ref-body" id="ref-body">
+    <!-- Rendered by JS -->
+  </div>
+  <div style="padding:0 18px 20px;">
+    <button class="ref-add-section-btn" id="ref-add-section-btn" onclick="openAddSection()">+ Add New Section</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     UPLOAD MODAL
+═══════════════════════════════════ -->
+<div class="upload-modal-overlay" id="upload-overlay" onclick="overlayClose(event)">
+  <div class="upload-modal">
+    <h3>Upload Recipes</h3>
+    <textarea class="modal-textarea" id="upload-text" placeholder="Paste one or more recipes here…&#10;&#10;Separate multiple recipes with a blank line between them, or upload multiple files below."></textarea>
+    <div class="modal-or">— or choose files —</div>
+    <label class="file-label">
+      📂 Choose files (select multiple)
+      <input type="file" accept=".txt,.md,.docx,.pdf" multiple style="display:none" onchange="readFiles(event)">
+    </label>
+    <div class="file-format-note">Supported: .txt &nbsp;·&nbsp; .md &nbsp;·&nbsp; .docx &nbsp;·&nbsp; .pdf &nbsp;·&nbsp; select multiple files at once</div>
+    <div class="parsing-indicator" id="parsing-indicator">⏳ Reading files…</div>
+    <div class="modal-btns">
+      <button class="btn-parse" onclick="startBatchParse()">Parse Recipes →</button>
+      <button class="btn-cancel" onclick="closeUploadModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     BATCH REVIEW MODAL
+═══════════════════════════════════ -->
+<div class="upload-modal-overlay" id="batch-overlay">
+  <div class="upload-modal" style="max-height:90vh;overflow-y:auto;padding-bottom:30px;">
+
+    <!-- Progress bar -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <h3 style="margin:0;" id="batch-heading">Recipe 1 of 3</h3>
+      <span style="font-size:0.78rem;color:var(--ink-light);" id="batch-skip-count"></span>
+    </div>
+    <div style="height:4px;background:var(--divider);border-radius:4px;margin-bottom:18px;">
+      <div id="batch-progress-bar" style="height:100%;background:var(--accent);border-radius:4px;transition:width 0.3s;width:0%;"></div>
+    </div>
+
+    <label class="field-label" for="batch-title">Title</label>
+    <input class="field-input" id="batch-title" type="text" oninput="updateBatchPreview()">
+
+    <label class="field-label" for="batch-cat">Category</label>
+    <select class="field-select" id="batch-cat" onchange="onBatchCatChange()">
+      <option value="">— Choose a category —</option>
+      <option value="Appetizers & Snacks">Appetizers &amp; Snacks</option>
+      <option value="Soups & Salads">Soups &amp; Salads</option>
+      <option value="Main Courses">Main Courses</option>
+      <option value="Side Dishes">Side Dishes</option>
+      <option value="Desserts & Baking">Desserts &amp; Baking</option>
+      <option value="Beverages">Beverages</option>
+      <option value="Everything Else">Everything Else</option>
+    </select>
+
+    <div class="subcat-field-wrap" id="batch-subcat-wrap">
+      <label class="field-label" for="batch-subcat">Sub-category</label>
+      <select class="field-select" id="batch-subcat">
+        <option value="">— Choose a sub-category —</option>
+      </select>
+    </div>
+
+    <label class="field-label" for="batch-ingredients">Ingredients</label>
+    <textarea class="field-ta" id="batch-ingredients" rows="4" oninput="updateBatchPreview()"></textarea>
+    <div class="field-hint">Start a line with # to add a plain label</div>
+
+    <label class="field-label" for="batch-directions">Directions</label>
+    <textarea class="field-ta" id="batch-directions" rows="5" oninput="updateBatchPreview()"></textarea>
+    <div class="field-hint">Start a line with # to add a plain label</div>
+
+    <label class="field-label" for="batch-notes">Notes <span style="font-weight:300;text-transform:none;letter-spacing:0">(optional)</span></label>
+    <textarea class="field-ta" id="batch-notes" rows="2" oninput="updateBatchPreview()"></textarea>
+
+    <!-- Live preview -->
+    <div class="preview-wrap" style="margin-top:18px;">
+      <div class="preview-label">Preview</div>
+      <div id="batch-preview"></div>
+    </div>
+
+    <!-- Action buttons -->
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button class="btn-parse" style="flex:2;" onclick="batchSaveAndNext()">Save &amp; Next →</button>
+      <button class="btn-cancel" style="flex:1;" onclick="batchSkip()">Skip</button>
+    </div>
+    <button class="btn-cancel" style="width:100%;margin-top:8px;text-align:center;" onclick="batchCancel()">Cancel All</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+/* ═══════════════════════════════════════════════════
+   SUBCATEGORY CONFIG
+═══════════════════════════════════════════════════ */
+const SUBCATEGORIES = {
+  "Desserts & Baking": ["Cakes", "Cookies", "Pies & Pastries", "Breads", "Frostings", "No Bake", "Other"],
+  "Beverages": ["Non-Alcoholic", "Alcoholic"]
+};
+function hasSubcats(cat) { return !!SUBCATEGORIES[cat]; }
+
+function populateSubcatSelect(selectEl, cat, selectedVal) {
+  const opts = SUBCATEGORIES[cat] || [];
+  selectEl.innerHTML = '<option value="">— Choose a sub-category —</option>' +
+    opts.map(o => `<option value="${o}"${selectedVal === o ? ' selected' : ''}>${o}</option>`).join('');
+}
+function showSubcatWrap(wrapEl, selectEl, cat, selectedVal) {
+  if (hasSubcats(cat)) {
+    populateSubcatSelect(selectEl, cat, selectedVal || '');
+    wrapEl.classList.add('visible');
+  } else {
+    wrapEl.classList.remove('visible');
+    selectEl.innerHTML = '';
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   RENDER HELPERS
+═══════════════════════════════════════════════════ */
+function renderIngredients(text) {
+  const lines = (text||'').split('\n').map(l=>l.trim()).filter(l=>l);
+  if (!lines.length) return '<span class="r-content">—</span>';
+  return `<ul class="r-ingredients-list">${lines.map(l => {
+    if (l.startsWith('#')) {
+      const label = l.replace(/^#+\s*/, '');
+      return `<li class="r-label-item"><span class="r-section-line">${escHtml(label)}</span></li>`;
+    }
+    return `<li>${renderIngLine(l)}</li>`;
+  }).join('')}</ul>`;
+}
+function renderDirections(text) {
+  const lines = (text||'').split('\n').map(l=>l.trim()).filter(l=>l);
+  if (!lines.length) return '<span class="r-content">—</span>';
+  return `<ol class="r-directions-list">${lines.map(l => {
+    if (l.startsWith('#')) {
+      const label = l.replace(/^#+\s*/, '');
+      // counter-reset on the label item restarts numbering at 1 for the next step
+      return `<li class="r-label-item" style="counter-reset:steps 0;"><span class="r-section-line">${escHtml(label)}</span></li>`;
+    }
+    return `<li>${escHtml(l)}</li>`;
+  }).join('')}</ol>`;
+}
+function renderNotes(text) {
+  const lines = (text||'').split('\n').map(l=>l.trim()).filter(l=>l);
+  if (!lines.length) return '';
+  return `<ul class="r-notes-list">${lines.map(l=>`<li>${escHtml(l)}</li>`).join('')}</ul>`;
+}
+
+/* ── Number scaling ── */
+
+
+// ── Fraction rendering ─────────────────────────────────────
+// Map of slash-fractions and unicode fracs → styled HTML
+const FRAC_MAP = {
+  '1/8':'⅛','1/4':'¼','1/3':'⅓','3/8':'⅜','1/2':'½',
+  '5/8':'⅝','2/3':'⅔','3/4':'¾','7/8':'⅞',
+  '2/4':'½','4/8':'½','2/6':'⅓','4/6':'⅔'
+};
+const UNICODE_FRACS = {
+  '½':0.5,'⅓':1/3,'⅔':2/3,'¼':0.25,'¾':0.75,
+  '⅕':0.2,'⅖':0.4,'⅗':0.6,'⅘':0.8,
+  '⅙':1/6,'⅚':5/6,'⅛':0.125,'⅜':0.375,'⅝':0.625,'⅞':0.875
+};
+const FRAC_VAL = { ...UNICODE_FRACS };
+Object.entries(FRAC_MAP).forEach(([slash, uni]) => { FRAC_VAL[slash] = UNICODE_FRACS[uni]; });
+
+// Render a line of ingredient text: convert slash fractions like 1/2 → ½ unicode char
+// Used for ALL ingredient rendering (scaled and unscaled)
+function renderFracs(str) {
+  // Replace slash fractions e.g. 1/2 → ½
+  return str.replace(/\b(\d+)\/(\d+)\b/g, (match, a, b) => {
+    return FRAC_MAP[a+'/'+b] || match;
+  });
+}
+
+// ── Quantity parsing ───────────────────────────────────────
+// TOKEN_RE matches: whole+unicode, whole+slash, whole alone, unicode alone, slash alone
+// Order matters — most specific first
+const TOKEN_RE = /^(\d+)\s+(\d+)\/(\d+)|^(\d+)\s*([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])|^(\d+)\/(\d+)|^(\d+(?:\.\d+)?)|^([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])/;
+
+function matchToken(str) {
+  // Returns { raw, value } or null
+  const m = str.match(TOKEN_RE);
+  if (!m) return null;
+  let raw, value;
+  if (m[1] !== undefined) {
+    // "1 3/4"
+    raw   = m[0];
+    value = parseInt(m[1]) + parseInt(m[2]) / parseInt(m[3]);
+  } else if (m[4] !== undefined) {
+    // "1½"
+    raw   = m[0];
+    value = parseInt(m[4]) + UNICODE_FRACS[m[5]];
+  } else if (m[6] !== undefined) {
+    // "3/4"
+    raw   = m[0];
+    value = parseInt(m[6]) / parseInt(m[7]);
+  } else if (m[8] !== undefined) {
+    // "2" or "2.5"
+    raw   = m[0];
+    value = parseFloat(m[8]);
+  } else if (m[9] !== undefined) {
+    // "½"
+    raw   = m[0];
+    value = UNICODE_FRACS[m[9]];
+  }
+  return (raw && !isNaN(value)) ? { raw, value } : null;
+}
+
+// ── Format a scaled number back to a readable string ──────
+function formatAmount(n) {
+  if (n <= 0) return '0';
+  const FRAC_SYMS = [
+    [1/8,'⅛'],[1/4,'¼'],[1/3,'⅓'],[3/8,'⅜'],[1/2,'½'],
+    [5/8,'⅝'],[2/3,'⅔'],[3/4,'¾'],[7/8,'⅞']
+  ];
+  const whole = Math.floor(n);
+  const frac  = n - whole;
+  if (frac < 0.015) return String(whole);
+  if (frac > 0.985) return String(whole + 1);
+  for (const [val, sym] of FRAC_SYMS) {
+    if (Math.abs(frac - val) < 0.02) {
+      return whole > 0 ? whole + ' ' + sym : sym;
+    }
+  }
+  return parseFloat(n.toFixed(2)).toString();
+}
+
+// ── Scale a single ingredient line ────────────────────────
+function scaleLine(line, factor) {
+  if (line.startsWith('#')) return line;
+  const trimmed = line.trimStart();
+  const leading = line.length - trimmed.length; // preserve indentation
+  const indent  = line.slice(0, leading);
+
+  const tok = matchToken(trimmed);
+  if (!tok) return line;
+
+  const scaled = formatAmount(tok.value * factor);
+  return indent + scaled + trimmed.slice(tok.raw.length);
+}
+
+function scaleText(text, factor) {
+  if (factor === 1) return text;
+  return text.split('\n').map(line => scaleLine(line, factor)).join('\n');
+}
+
+// ── Render ingredient text with styled fractions ──────────
+function renderIngLine(rawLine) {
+  // First convert any slash fractions (1/2 → ½) in the raw text
+  return renderFracs(escHtml(rawLine));
+}
+
+function buildRecipeCardHtml(r, scale) {
+  scale = scale || 1;
+  const ingText = scale !== 1 ? scaleText(r.ingredients, scale) : r.ingredients;
+  const notesHtml = r.notes ? `<hr class="r-divider"><div class="r-section-label">Notes</div>${renderNotes(r.notes)}` : '';
+  return `
+    <div class="recipe-card" style="margin:0">
+      <div class="r-title">${escHtml(r.title)}</div>
+      <hr class="r-divider">
+      <div class="r-section-label">Ingredients</div>
+      ${renderIngredients(ingText)}
+      <hr class="r-divider">
+      <div class="r-section-label">Directions</div>
+      ${renderDirections(r.directions)}
+      ${notesHtml}
+    </div>`;
+}
+
+/* ═══════════════════════════════════════════════════
+   DATA STORE
+═══════════════════════════════════════════════════ */
+const CATEGORIES = [
+  "Appetizers & Snacks","Soups & Salads","Main Courses",
+  "Side Dishes","Desserts & Baking","Beverages","Everything Else"
+];
+
+let recipes  = JSON.parse(localStorage.getItem('rb_recipes') || '[]');
+let nextId   = parseInt(localStorage.getItem('rb_nextId') || '1');
+// sortOrder: { "cat|||subcat": [id, id, ...], ... }  — manual order per group
+let sortOrder = JSON.parse(localStorage.getItem('rb_sortOrder') || '{}');
+
+function save() {
+  localStorage.setItem('rb_recipes', JSON.stringify(recipes));
+  localStorage.setItem('rb_nextId', String(nextId));
+  localStorage.setItem('rb_sortOrder', JSON.stringify(sortOrder));
+}
+
+function groupKey(cat, subcat) { return subcat ? cat + '|||' + subcat : cat; }
+
+// Return recipes for a group, respecting manual order, falling back to alpha
+function sortedRecipes(cat, subcat) {
+  const key  = groupKey(cat, subcat);
+  const pool = recipes.filter(r => r.category === cat && (subcat ? r.subcategory === subcat : true) && (!subcat && !hasSubcats(cat) || subcat));
+  // For non-subcat cats call without subcat restriction
+  const all  = subcat
+    ? recipes.filter(r => r.category === cat && r.subcategory === subcat)
+    : recipes.filter(r => r.category === cat && (!hasSubcats(r.category) || !r.subcategory || !SUBCATEGORIES[r.category].includes(r.subcategory)));
+  const order = sortOrder[key];
+  if (!order || !order.length) {
+    return [...all].sort((a,b) => a.title.localeCompare(b.title));
+  }
+  // merge: ordered first, then alpha for any not yet in order
+  const ordered = order.map(id => all.find(r => r.id === id)).filter(Boolean);
+  const rest    = all.filter(r => !order.includes(r.id)).sort((a,b) => a.title.localeCompare(b.title));
+  return [...ordered, ...rest];
+}
+
+function sortedRecipesForCat(cat) {
+  if (!hasSubcats(cat)) return sortedRecipes(cat, null);
+  let out = [];
+  SUBCATEGORIES[cat].forEach(sub => {
+    out = out.concat(sortedRecipesInSubcat(cat, sub));
+  });
+  return out;
+}
+
+function sortedRecipesInSubcat(cat, sub) {
+  const key   = groupKey(cat, sub);
+  const all   = recipes.filter(r => r.category === cat && r.subcategory === sub);
+  const order = sortOrder[key];
+  if (!order || !order.length) return [...all].sort((a,b) => a.title.localeCompare(b.title));
+  const ordered = order.map(id => all.find(r => r.id === id)).filter(Boolean);
+  const rest    = all.filter(r => !order.includes(r.id)).sort((a,b) => a.title.localeCompare(b.title));
+  return [...ordered, ...rest];
+}
+
+function saveSortOrderForGroup(cat, subcat, orderedIds) {
+  sortOrder[groupKey(cat, subcat)] = orderedIds;
+  save();
+}
+
+/* ═══════════════════════════════════════════════════
+   TAB SWITCHING
+═══════════════════════════════════════════════════ */
+function switchTab(tab) {
+  closeDetail();
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  document.querySelectorAll('.tab-btn')[['toc','add','edit'].indexOf(tab)].classList.add('active');
+
+  if (tab === 'toc') { resetToc(); renderToc(); }
+  if (tab === 'edit') {
+    document.getElementById('edit-cat-select').value = '';
+    document.getElementById('edit-recipe-list').innerHTML = '';
+    document.getElementById('edit-subcat-filter-wrap').classList.remove('visible');
+    closeEditForm();
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   RECIPE DETAIL VIEW
+═══════════════════════════════════════════════════ */
+let detailRecipeId  = null;
+let detailScale     = 1;
+const SCALE_STEPS   = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
+
+function openDetail(id) {
+  const r = recipes.find(x => x.id === id);
+  if (!r) return;
+  detailRecipeId = id;
+  detailScale    = 1;
+  document.getElementById('detail-header-title').textContent = r.title;
+  renderDetailBody();
+  const view = document.getElementById('recipe-detail-view');
+  view.classList.add('open');
+  view.scrollTop = 0;
+}
+
+function renderDetailBody() {
+  const r = recipes.find(x => x.id === detailRecipeId);
+  if (!r) return;
+  document.getElementById('scale-bar').style.display = 'flex';
+  document.getElementById('scale-input').value = formatScale(detailScale);
+  document.getElementById('detail-body').innerHTML = buildRecipeCardHtml(r, detailScale);
+}
+
+function changeScale(dir) {
+  // Find nearest step, then step up/down
+  let nearest = SCALE_STEPS.reduce((a, b) => Math.abs(b - detailScale) < Math.abs(a - detailScale) ? b : a);
+  let idx = SCALE_STEPS.indexOf(nearest);
+  // If current is between steps, nudge towards dir first
+  if (detailScale < nearest && dir > 0) idx = SCALE_STEPS.indexOf(nearest);
+  else if (detailScale > nearest && dir < 0) idx = SCALE_STEPS.indexOf(nearest);
+  const newIdx = Math.max(0, Math.min(SCALE_STEPS.length - 1, idx + dir));
+  detailScale  = SCALE_STEPS[newIdx];
+  renderDetailBody();
+}
+
+function applyScaleInput() {
+  const raw = parseFloat(document.getElementById('scale-input').value);
+  if (!isNaN(raw) && raw > 0) {
+    detailScale = Math.round(raw * 100) / 100; // round to 2dp
+    renderDetailBody();
+  } else {
+    // Restore last valid value
+    document.getElementById('scale-input').value = formatScale(detailScale);
+  }
+}
+
+function resetScale() {
+  detailScale = 1;
+  renderDetailBody();
+}
+
+function formatScale(s) {
+  // Show clean decimals — no trailing zeros
+  return parseFloat(s.toFixed(4)).toString();
+}
+
+function closeDetail() {
+  document.getElementById('recipe-detail-view').classList.remove('open');
+  document.getElementById('scale-bar').style.display = 'none';
+  detailRecipeId = null;
+  detailScale    = 1;
+}
+
+/* ═══════════════════════════════════════════════════
+   TOC
+═══════════════════════════════════════════════════ */
+function resetToc() {
+  document.getElementById('toc-search').value = '';
+  document.getElementById('toc-search-results').style.display = 'none';
+  document.getElementById('toc-search-results').innerHTML = '';
+  document.getElementById('toc-accordion').style.display = 'block';
+}
+
+function renderToc() {
+  const acc = document.getElementById('toc-accordion');
+  acc.innerHTML = '';
+  CATEGORIES.forEach(cat => {
+    const block = document.createElement('div');
+    block.className = 'category-block';
+    const recs = recipes.filter(r => r.category === cat);
+
+    let innerHtml = '';
+    if (!recs.length) {
+      innerHtml = '<div class="empty-cat" style="padding:8px 14px">No recipes yet</div>';
+    } else if (hasSubcats(cat)) {
+      SUBCATEGORIES[cat].forEach(sub => {
+        const sorted = sortedRecipesInSubcat(cat, sub);
+        if (!sorted.length) return;
+        innerHtml += `<div class="subcat-group">
+          <div class="subcat-label">${sub}</div>
+          ${sorted.map(r => `<div class="recipe-link" onclick="openDetail(${r.id})">${escHtml(r.title)}</div>`).join('')}
+        </div>`;
+      });
+      const orphans = recs.filter(r => !r.subcategory || !SUBCATEGORIES[cat].includes(r.subcategory))
+                          .sort((a,b) => a.title.localeCompare(b.title));
+      if (orphans.length) {
+        innerHtml += `<div class="subcat-group"><div class="subcat-label">Other</div>
+          ${orphans.map(r=>`<div class="recipe-link" onclick="openDetail(${r.id})">${escHtml(r.title)}</div>`).join('')}
+        </div>`;
+      }
+    } else {
+      const sorted = sortedRecipes(cat, null);
+      innerHtml = sorted.map(r => `<div class="recipe-link" onclick="openDetail(${r.id})">${escHtml(r.title)}</div>`).join('');
+    }
+
+    block.innerHTML = `
+      <div class="cat-header" onclick="toggleCat(this)">
+        <span class="cat-name">${cat}</span>
+        <span class="cat-arrow">▼</span>
+      </div>
+      <div class="cat-body">${innerHtml}</div>`;
+    acc.appendChild(block);
+  });
+}
+
+function toggleCat(header) {
+  const body = header.nextElementSibling;
+  const isOpen = body.classList.contains('open');
+  document.querySelectorAll('.cat-body').forEach(b=>b.classList.remove('open'));
+  document.querySelectorAll('.cat-header').forEach(h=>h.classList.remove('open'));
+  if (!isOpen) { body.classList.add('open'); header.classList.add('open'); }
+}
+
+/* ═══════════════════════════════════════════════════
+   TOC SEARCH
+═══════════════════════════════════════════════════ */
+function handleTocSearch(val) {
+  const q = val.trim().toLowerCase();
+  const resultsEl = document.getElementById('toc-search-results');
+  const accEl = document.getElementById('toc-accordion');
+  if (!q) {
+    resultsEl.style.display = 'none';
+    resultsEl.innerHTML = '';
+    accEl.style.display = 'block';
+    return;
+  }
+  accEl.style.display = 'none';
+  const hits = recipes.filter(r => r.title.toLowerCase().includes(q));
+  if (!hits.length) {
+    resultsEl.innerHTML = '<div class="empty-cat">No recipes found</div>';
+  } else {
+    resultsEl.innerHTML = hits.map(r => {
+      const label = r.subcategory ? `${r.category} › ${r.subcategory}` : r.category;
+      return `<div class="search-result-item" onclick="openDetail(${r.id})">
+        <span class="sri-title">${escHtml(r.title)}</span>
+        <span class="sri-cat">${escHtml(label)}</span>
+      </div>`;
+    }).join('');
+  }
+  resultsEl.style.display = 'block';
+}
+
+/* ═══════════════════════════════════════════════════
+   LIVE PREVIEW
+═══════════════════════════════════════════════════ */
+function buildPreviewHtml(title, ingredients, directions, notes) {
+  if (!title && !ingredients && !directions) return '<div class="empty-cat">Fill in the fields above to see a preview.</div>';
+  const r = { title: title||'Untitled Recipe', ingredients: ingredients||'', directions: directions||'', notes: notes||'' };
+  return buildRecipeCardHtml(r);
+}
+function updateAddPreview() {
+  document.getElementById('add-preview').innerHTML = buildPreviewHtml(
+    document.getElementById('add-title').value,
+    document.getElementById('add-ingredients').value,
+    document.getElementById('add-directions').value,
+    document.getElementById('add-notes').value
+  );
+}
+function updateEditPreview() {
+  document.getElementById('edit-preview').innerHTML = buildPreviewHtml(
+    document.getElementById('edit-title').value,
+    document.getElementById('edit-ingredients').value,
+    document.getElementById('edit-directions').value,
+    document.getElementById('edit-notes').value
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   ADD RECIPE
+═══════════════════════════════════════════════════ */
+function onAddCatChange() {
+  showSubcatWrap(
+    document.getElementById('add-subcat-wrap'),
+    document.getElementById('add-subcat'),
+    document.getElementById('add-cat').value, ''
+  );
+  updateAddPreview();
+}
+
+function addRecipe() {
+  const title  = document.getElementById('add-title').value.trim();
+  const cat    = document.getElementById('add-cat').value;
+  const subcat = hasSubcats(cat) ? document.getElementById('add-subcat').value : '';
+  const ing    = document.getElementById('add-ingredients').value.trim();
+  const dir    = document.getElementById('add-directions').value.trim();
+  const notes  = document.getElementById('add-notes').value.trim();
+
+  if (!title) { showToast('Please enter a title'); return; }
+  if (!cat)   { showToast('Please choose a category'); return; }
+  if (hasSubcats(cat) && !subcat) { showToast('Please choose a sub-category'); return; }
+  if (!ing)   { showToast('Please enter ingredients'); return; }
+  if (!dir)   { showToast('Please enter directions'); return; }
+
+  recipes.push({ id: nextId++, title, category: cat, subcategory: subcat, ingredients: ing, directions: dir, notes });
+  save();
+
+  ['add-title','add-ingredients','add-directions','add-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('add-cat').value = '';
+  document.getElementById('add-subcat-wrap').classList.remove('visible');
+  document.getElementById('add-preview').innerHTML = '';
+  showToast('Recipe added!');
+}
+
+/* ═══════════════════════════════════════════════════
+   UPLOAD / BATCH PARSE
+═══════════════════════════════════════════════════ */
+let batchQueue   = [];   // parsed recipe objects waiting for review
+let batchIndex   = 0;
+let batchSkipped = 0;
+let batchSaved   = 0;
+
+function openUploadModal() {
+  document.getElementById('upload-text').value = '';
+  document.getElementById('parsing-indicator').style.display = 'none';
+  document.getElementById('upload-overlay').classList.add('open');
+}
+function closeUploadModal() { document.getElementById('upload-overlay').classList.remove('open'); }
+function overlayClose(e)    { if (e.target === document.getElementById('upload-overlay')) closeUploadModal(); }
+
+/* ── Read multiple files, collect all text ── */
+async function readFiles(e) {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+  const indicator = document.getElementById('parsing-indicator');
+  indicator.style.display = 'block';
+
+  const texts = [];
+  for (const file of files) {
+    try { texts.push(await readOneFile(file)); } catch { /* skip unreadable */ }
+  }
+
+  // Append to textarea (separated by a clear divider line)
+  const existing = document.getElementById('upload-text').value.trim();
+  const combined = [existing, ...texts].filter(Boolean).join('\n\n---\n\n');
+  document.getElementById('upload-text').value = combined;
+  indicator.style.display = 'none';
+  e.target.value = '';
+}
+
+function readOneFile(file) {
+  return new Promise((resolve, reject) => {
+    const name = file.name.toLowerCase();
+    if (name.endsWith('.txt') || name.endsWith('.md')) {
+      const r = new FileReader();
+      r.onload  = ev => resolve(ev.target.result);
+      r.onerror = reject;
+      r.readAsText(file);
+    } else if (name.endsWith('.docx')) {
+      const r = new FileReader();
+      r.onload = ev => mammoth.extractRawText({ arrayBuffer: ev.target.result })
+        .then(res => resolve(res.value)).catch(reject);
+      r.onerror = reject;
+      r.readAsArrayBuffer(file);
+    } else if (name.endsWith('.pdf')) {
+      const r = new FileReader();
+      r.onload = async ev => {
+        try {
+          const pdf = await pdfjsLib.getDocument({ data: ev.target.result }).promise;
+          let text = '';
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page    = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            text += content.items.map(item => item.str).join(' ') + '\n';
+          }
+          resolve(text.trim());
+        } catch { reject(); }
+      };
+      r.onerror = reject;
+      r.readAsArrayBuffer(file);
+    } else { reject(); }
+  });
+}
+
+/* ── Split raw text into individual recipe blocks ── */
+function splitIntoRecipes(text) {
+  // Split on "---" dividers, or on double blank lines, or on lines that look like new recipe titles
+  // followed by section headers (heuristic)
+  const dividerSplit = text.split(/\n\s*---+\s*\n/);
+  if (dividerSplit.length > 1) return dividerSplit.map(s => s.trim()).filter(Boolean);
+
+  // Split on 2+ consecutive blank lines
+  const blankSplit = text.split(/\n{3,}/);
+  if (blankSplit.length > 1) return blankSplit.map(s => s.trim()).filter(Boolean);
+
+  // Single recipe
+  return [text.trim()];
+}
+
+/* ── Parse one recipe block into fields ── */
+function stripLeadingMarkers(line) {
+  line = line.replace(/^[\u2022\u00B7\u2023\u2043\u204C\u204D\u2219\u25E6\u25AA\u25AB\u25B8\u25BA\u2713\u2714\u25C6\u2756\u27A4\u279C\u2794\u279E\*\-\–\—]\s+/, '');
+  line = line.replace(/^\(?[0-9]+[.):\-]\)?\s+/, '');
+  line = line.replace(/^\(?[a-zA-Z][.):\-]\)?\s+/, '');
+  return line.trim();
+}
+
+function parseOneRecipe(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+  let title = '', ingredients = [], directions = [], notes = [];
+  let section = 'title';
+
+  const isSectionHeader = l => {
+    const lo = l.toLowerCase();
+    if (/^ingred/i.test(lo)) return 'ingredients';
+    if (/^direct|^instruction|^method|^steps|^how to/i.test(lo)) return 'directions';
+    if (/^note|^tip|^variation|^storage/i.test(lo)) return 'notes';
+    return null;
+  };
+
+  lines.forEach((line, i) => {
+    const sec = isSectionHeader(line);
+    if (sec) { section = sec; return; }
+    if (section === 'title' && i === 0) { title = line; return; }
+    if (section === 'title' && !title)  { title = line; return; }
+    if (section === 'ingredients') { ingredients.push(stripLeadingMarkers(line)); return; }
+    if (section === 'directions')  { directions.push(stripLeadingMarkers(line)); return; }
+    if (section === 'notes')       { notes.push(stripLeadingMarkers(line)); return; }
+    if (section === 'title') directions.push(stripLeadingMarkers(line));
+  });
+
+  if (!ingredients.length && !directions.length) {
+    const mid = Math.floor(lines.length / 2);
+    ingredients = lines.slice(1, mid).map(stripLeadingMarkers);
+    directions  = lines.slice(mid).map(stripLeadingMarkers);
+  }
+
+  return { title, ingredients: ingredients.join('\n'), directions: directions.join('\n'), notes: notes.join('\n') };
+}
+
+/* ── Kick off batch review ── */
+function startBatchParse() {
+  const text = document.getElementById('upload-text').value.trim();
+  if (!text) { showToast('Nothing to parse'); return; }
+
+  const blocks = splitIntoRecipes(text);
+  batchQueue   = blocks.map(parseOneRecipe).filter(r => r.title || r.ingredients || r.directions);
+  batchIndex   = 0;
+  batchSkipped = 0;
+  batchSaved   = 0;
+
+  if (!batchQueue.length) { showToast('No recipes found'); return; }
+
+  closeUploadModal();
+  openBatchReview();
+}
+
+/* ── Batch review UI ── */
+function openBatchReview() {
+  document.getElementById('batch-overlay').classList.add('open');
+  loadBatchRecipe();
+}
+
+function loadBatchRecipe() {
+  const r = batchQueue[batchIndex];
+  const total = batchQueue.length;
+
+  document.getElementById('batch-heading').textContent    = `Recipe ${batchIndex + 1} of ${total}`;
+  document.getElementById('batch-skip-count').textContent = batchSkipped ? `${batchSkipped} skipped` : '';
+  document.getElementById('batch-progress-bar').style.width = `${(batchIndex / total) * 100}%`;
+
+  document.getElementById('batch-title').value       = r.title       || '';
+  document.getElementById('batch-ingredients').value = r.ingredients || '';
+  document.getElementById('batch-directions').value  = r.directions  || '';
+  document.getElementById('batch-notes').value       = r.notes       || '';
+  document.getElementById('batch-cat').value         = '';
+  document.getElementById('batch-subcat-wrap').classList.remove('visible');
+
+  updateBatchPreview();
+  // Scroll to top of modal
+  document.querySelector('#batch-overlay .upload-modal').scrollTop = 0;
+}
+
+function onBatchCatChange() {
+  showSubcatWrap(
+    document.getElementById('batch-subcat-wrap'),
+    document.getElementById('batch-subcat'),
+    document.getElementById('batch-cat').value, ''
+  );
+  updateBatchPreview();
+}
+
+function updateBatchPreview() {
+  document.getElementById('batch-preview').innerHTML = buildPreviewHtml(
+    document.getElementById('batch-title').value,
+    document.getElementById('batch-ingredients').value,
+    document.getElementById('batch-directions').value,
+    document.getElementById('batch-notes').value
+  );
+}
+
+function batchSaveAndNext() {
+  const title  = document.getElementById('batch-title').value.trim();
+  const cat    = document.getElementById('batch-cat').value;
+  const subcat = hasSubcats(cat) ? document.getElementById('batch-subcat').value : '';
+  const ing    = document.getElementById('batch-ingredients').value.trim();
+  const dir    = document.getElementById('batch-directions').value.trim();
+  const notes  = document.getElementById('batch-notes').value.trim();
+
+  if (!title) { showToast('Please enter a title'); return; }
+  if (!cat)   { showToast('Please choose a category'); return; }
+  if (hasSubcats(cat) && !subcat) { showToast('Please choose a sub-category'); return; }
+  if (!ing)   { showToast('Please enter ingredients'); return; }
+  if (!dir)   { showToast('Please enter directions'); return; }
+
+  recipes.push({ id: nextId++, title, category: cat, subcategory: subcat, ingredients: ing, directions: dir, notes });
+  save();
+  batchSaved++;
+  batchAdvance();
+}
+
+function batchSkip() {
+  batchSkipped++;
+  batchAdvance();
+}
+
+function batchAdvance() {
+  batchIndex++;
+  if (batchIndex >= batchQueue.length) {
+    closeBatchReview();
+    showToast(`Done! ${batchSaved} recipe${batchSaved !== 1 ? 's' : ''} added${batchSkipped ? `, ${batchSkipped} skipped` : ''}.`);
+  } else {
+    loadBatchRecipe();
+  }
+}
+
+function batchCancel() {
+  closeBatchReview();
+  if (batchSaved) showToast(`${batchSaved} recipe${batchSaved !== 1 ? 's' : ''} saved before cancel.`);
+}
+
+function closeBatchReview() {
+  document.getElementById('batch-overlay').classList.remove('open');
+  batchQueue = [];
+}
+
+/* ═══════════════════════════════════════════════════
+   KITCHEN REFERENCE
+═══════════════════════════════════════════════════ */
+let referenceCalledFrom = null;
+let refEditMode = false;
+
+// ── Built-in sections (always shown, not editable in structure but custom entries appended) ──
+const REF_BUILTIN = [
+  {
+    id: 'doneness', emoji: '🌡️', title: 'Doneness Temperatures',
+    type: 'builtin',
+    html: `
+      <div class="ref-subsection-title">Meat &amp; Poultry (internal temp)</div>
+      <table class="ref-table">
+        <thead><tr><th>Food</th><th>Safe Temp</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Chicken / Turkey (whole or pieces)</td><td>165°F / 74°C</td><td>Clear juices; no pink</td></tr>
+          <tr><td>Ground beef / pork / lamb</td><td>160°F / 71°C</td><td>No pink in center</td></tr>
+          <tr><td>Beef / Lamb — rare</td><td>125°F / 52°C</td><td>Bright red center</td></tr>
+          <tr><td>Beef / Lamb — medium rare</td><td>135°F / 57°C</td><td>Warm red center</td></tr>
+          <tr><td>Beef / Lamb — medium</td><td>145°F / 63°C</td><td>Pink center</td></tr>
+          <tr><td>Beef / Lamb — well done</td><td>160°F / 71°C</td><td>Little to no pink</td></tr>
+          <tr><td>Pork (chops, roasts, loin)</td><td>145°F / 63°C</td><td>Slightly pink is fine</td></tr>
+          <tr><td>Fish / Seafood</td><td>145°F / 63°C</td><td>Flakes easily, opaque</td></tr>
+          <tr><td>Shrimp / Lobster / Crab</td><td>145°F / 63°C</td><td>Opaque, firm</td></tr>
+        </tbody>
+      </table>
+      <div class="ref-subsection-title">Baking &amp; Candy</div>
+      <table class="ref-table">
+        <thead><tr><th>Stage</th><th>Temp</th><th>Use</th></tr></thead>
+        <tbody>
+          <tr><td>Soft ball</td><td>235–240°F</td><td>Fudge, fondant</td></tr>
+          <tr><td>Firm ball</td><td>245–250°F</td><td>Caramels</td></tr>
+          <tr><td>Hard ball</td><td>250–265°F</td><td>Nougat, divinity</td></tr>
+          <tr><td>Soft crack</td><td>270–290°F</td><td>Taffy, butterscotch</td></tr>
+          <tr><td>Hard crack</td><td>300–310°F</td><td>Lollipops, toffee</td></tr>
+          <tr><td>Bread (internal)</td><td>190–210°F</td><td>Sounds hollow when tapped</td></tr>
+          <tr><td>Pie custard (set)</td><td>175°F</td><td>Clean knife test</td></tr>
+          <tr><td>Oil for frying</td><td>350–375°F</td><td>Bread cube browns in 30 sec</td></tr>
+        </tbody>
+      </table>`
+  },
+  {
+    id: 'substitutions', emoji: '🔄', title: 'Common Substitutions',
+    type: 'builtin',
+    html: `
+      <div class="ref-subsection-title">Dairy</div>
+      <div class="ref-card"><div class="ref-tag">Buttermilk — 1 cup</div><div class="ref-card-body">1 cup milk + 1 tbsp lemon juice or white vinegar. Stir and let sit 5 min.</div></div>
+      <div class="ref-card"><div class="ref-tag">Sour Cream — 1 cup</div><div class="ref-card-body">1 cup plain yogurt; or ¾ cup cream cheese thinned with a little milk.</div></div>
+      <div class="ref-card"><div class="ref-tag">Heavy Cream — 1 cup</div><div class="ref-card-body">¾ cup whole milk + ¼ cup melted butter (won't whip). Or 1 cup milk + 2 tbsp cornstarch (good for sauces and soups). Or full-fat coconut cream.</div></div>
+      <div class="ref-card"><div class="ref-tag">Whole Milk — 1 cup</div><div class="ref-card-body">½ cup evaporated milk + ½ cup water; or any non-dairy milk 1:1.</div></div>
+      <div class="ref-card"><div class="ref-tag">Butter — 1 cup</div><div class="ref-card-body">1 cup margarine; ¾ cup vegetable oil; or ¾ cup shortening + ½ tsp salt.</div></div>
+      <div class="ref-subsection-title">Eggs</div>
+      <div class="ref-card"><div class="ref-tag">1 Whole Egg</div><div class="ref-card-body">3 tbsp aquafaba (chickpea liquid); ¼ cup unsweetened applesauce; 1 tbsp ground flaxseed + 3 tbsp water (let sit 5 min); or 1 tsp baking powder + 1 tbsp water + 1 tbsp vinegar.</div></div>
+      <div class="ref-subsection-title">Baking &amp; Pantry</div>
+      <div class="ref-card"><div class="ref-tag">Self-Rising Flour — 1 cup</div><div class="ref-card-body">1 cup all-purpose flour + 1½ tsp baking powder + ¼ tsp salt.</div></div>
+      <div class="ref-card"><div class="ref-tag">Cake Flour — 1 cup</div><div class="ref-card-body">¾ cup + 2 tbsp all-purpose flour + 2 tbsp cornstarch. Sift together.</div></div>
+      <div class="ref-card"><div class="ref-tag">Baking Powder — 1 tsp</div><div class="ref-card-body">¼ tsp baking soda + ½ tsp cream of tartar.</div></div>
+      <div class="ref-card"><div class="ref-tag">Cornstarch (thickener) — 1 tbsp</div><div class="ref-card-body">2 tbsp all-purpose flour; or 2 tsp arrowroot powder.</div></div>
+      <div class="ref-card"><div class="ref-tag">Brown Sugar — 1 cup</div><div class="ref-card-body">1 cup white sugar + 1 tbsp molasses (dark) or 2 tsp molasses (light). Mix well.</div></div>
+      <div class="ref-card"><div class="ref-tag">Honey — 1 cup</div><div class="ref-card-body">1¼ cups sugar + ¼ cup liquid; or 1 cup maple syrup (reduce other liquids slightly).</div></div>
+      <div class="ref-card"><div class="ref-tag">Lemon Juice — 1 tsp</div><div class="ref-card-body">½ tsp white vinegar or ½ tsp lime juice.</div></div>
+      <div class="ref-subsection-title">Herbs &amp; Spices</div>
+      <table class="ref-table"><thead><tr><th>Fresh</th><th>Dried equivalent</th></tr></thead><tbody>
+        <tr><td>1 tbsp fresh herb</td><td>1 tsp dried herb</td></tr>
+        <tr><td>1 tsp fresh herb</td><td>⅓ tsp dried herb</td></tr>
+      </tbody></table>`
+  },
+  {
+    id: 'measurements', emoji: '📏', title: 'Measurements & Conversions',
+    type: 'builtin',
+    html: `
+      <div class="ref-subsection-title">Volume</div>
+      <table class="ref-table"><thead><tr><th>Amount</th><th>Equals</th></tr></thead><tbody>
+        <tr><td>3 teaspoons</td><td>1 tablespoon</td></tr>
+        <tr><td>4 tablespoons</td><td>¼ cup</td></tr>
+        <tr><td>8 tablespoons</td><td>½ cup</td></tr>
+        <tr><td>16 tablespoons</td><td>1 cup</td></tr>
+        <tr><td>2 cups</td><td>1 pint</td></tr>
+        <tr><td>2 pints</td><td>1 quart</td></tr>
+        <tr><td>4 quarts</td><td>1 gallon</td></tr>
+        <tr><td>1 cup</td><td>8 fl oz / 240 ml</td></tr>
+        <tr><td>1 tablespoon</td><td>15 ml</td></tr>
+        <tr><td>1 teaspoon</td><td>5 ml</td></tr>
+      </tbody></table>
+      <div class="ref-subsection-title">Weight</div>
+      <table class="ref-table"><thead><tr><th>Amount</th><th>Equals</th></tr></thead><tbody>
+        <tr><td>16 ounces</td><td>1 pound</td></tr>
+        <tr><td>1 oz</td><td>~28 grams</td></tr>
+        <tr><td>1 lb</td><td>~454 grams</td></tr>
+        <tr><td>1 kg</td><td>~2.2 lbs</td></tr>
+      </tbody></table>
+      <div class="ref-subsection-title">Pan Size Equivalents</div>
+      <table class="ref-table"><thead><tr><th>Pan</th><th>Approx. Volume</th></tr></thead><tbody>
+        <tr><td>8×8 inch square</td><td>8 cups</td></tr>
+        <tr><td>9×9 inch square</td><td>10 cups</td></tr>
+        <tr><td>9×13 inch baking dish</td><td>14–15 cups</td></tr>
+        <tr><td>9-inch round cake pan</td><td>6 cups</td></tr>
+        <tr><td>9-inch pie plate</td><td>4 cups</td></tr>
+        <tr><td>12-cup muffin tin</td><td>~⅓ cup each</td></tr>
+      </tbody></table>`
+  },
+  {
+    id: 'tips', emoji: '💡', title: 'Handy Kitchen Tips',
+    type: 'builtin',
+    html: `
+      <div class="ref-card"><div class="ref-card-title">Room temperature butter</div><div class="ref-card-body">Leaves an indentation when pressed but doesn't squish — about 65–68°F / 18–20°C. Out of the fridge ~30–60 min.</div></div>
+      <div class="ref-card"><div class="ref-card-title">Is yeast still active?</div><div class="ref-card-body">Dissolve in 110°F / 43°C water with a pinch of sugar. Should foam within 10 minutes. If not, the yeast is dead.</div></div>
+      <div class="ref-card"><div class="ref-card-title">Is oil hot enough to fry?</div><div class="ref-card-body">Drop in a small cube of bread — it should sizzle immediately and brown in about 30 seconds at 350°F. Or use a wooden chopstick: small bubbles form around it when oil is ready.</div></div>
+      <div class="ref-card"><div class="ref-card-title">Pasta water ratio</div><div class="ref-card-body">4 quarts (16 cups) water per 1 lb pasta. Salt generously — it should taste like mild sea water.</div></div>
+      <div class="ref-card"><div class="ref-card-title">Altitude baking adjustments</div><div class="ref-card-body">Above 3,500 ft: reduce baking powder by ⅛–¼ tsp per tsp; add 1–2 tbsp more flour; increase oven temp by 15–25°F; reduce sugar by 1–2 tbsp per cup.</div></div>
+      <div class="ref-card"><div class="ref-card-title">Scaling a recipe</div><div class="ref-card-body">Multiply all ingredients by the same factor. For baking, don't scale leaveners (baking powder/soda) 1:1 for large increases — use about ¾ of the calculated amount.</div></div>`
+  },
+  {
+    id: 'oven', emoji: '🔥', title: 'Oven Temperature Guide',
+    type: 'builtin',
+    html: `
+      <table class="ref-table"><thead><tr><th>Description</th><th>°F</th><th>°C</th><th>Gas Mark</th></tr></thead><tbody>
+        <tr><td>Very low / warm</td><td>200–250°F</td><td>93–120°C</td><td>½</td></tr>
+        <tr><td>Low / slow</td><td>275–300°F</td><td>135–150°C</td><td>1–2</td></tr>
+        <tr><td>Moderate low</td><td>325°F</td><td>163°C</td><td>3</td></tr>
+        <tr><td>Moderate</td><td>350°F</td><td>177°C</td><td>4</td></tr>
+        <tr><td>Moderate high</td><td>375°F</td><td>190°C</td><td>5</td></tr>
+        <tr><td>Hot</td><td>400–425°F</td><td>204–218°C</td><td>6–7</td></tr>
+        <tr><td>Very hot</td><td>450–475°F</td><td>232–246°C</td><td>8–9</td></tr>
+        <tr><td>Broil / Grill</td><td>500°F+</td><td>260°C+</td><td>10</td></tr>
+      </tbody></table>`
+  }
+];
+
+// Custom entries stored in localStorage: { sectionId: [{title, body}, ...], ... }
+// Custom sections (user-created): [{id, emoji, title, entries:[{title,body}]}, ...]
+function loadRefCustom()    { return JSON.parse(localStorage.getItem('rb_ref_custom') || '{}'); }
+function loadRefSections()  { return JSON.parse(localStorage.getItem('rb_ref_sections') || '[]'); }
+function saveRefCustom(d)   { localStorage.setItem('rb_ref_custom', JSON.stringify(d)); }
+function saveRefSections(d) { localStorage.setItem('rb_ref_sections', JSON.stringify(d)); }
+
+function openReference(from) {
+  referenceCalledFrom = from || null;
+  refEditMode = false;
+  document.getElementById('ref-edit-toggle').classList.remove('active');
+  document.getElementById('ref-edit-toggle').textContent = 'Edit';
+  document.getElementById('ref-add-section-btn').classList.remove('visible');
+  renderRefBody();
+  document.getElementById('reference-view').classList.add('open');
+  document.getElementById('reference-view').scrollTop = 0;
+}
+function closeReference() {
+  document.getElementById('reference-view').classList.remove('open');
+  referenceCalledFrom = null;
+}
+
+function toggleRefEditMode() {
+  refEditMode = !refEditMode;
+  const btn = document.getElementById('ref-edit-toggle');
+  btn.classList.toggle('active', refEditMode);
+  btn.textContent = refEditMode ? 'Done' : 'Edit';
+  document.getElementById('ref-add-section-btn').classList.toggle('visible', refEditMode);
+  renderRefBody();
+}
+
+function renderRefBody() {
+  const body    = document.getElementById('ref-body');
+  const custom  = loadRefCustom();
+  const userSec = loadRefSections();
+  let out = '';
+
+  // Built-in sections
+  REF_BUILTIN.forEach(sec => {
+    const entries = custom[sec.id] || [];
+    out += renderRefSection(sec.id, sec.emoji + ' ' + sec.title, sec.html, entries, false);
+  });
+
+  // User-created sections
+  userSec.forEach(sec => {
+    out += renderRefSection(sec.id, sec.emoji + ' ' + sec.title, '', sec.entries || [], true);
+  });
+
+  body.innerHTML = out;
+}
+
+function renderRefSection(id, fullTitle, builtinHtml, customEntries, isUserSection) {
+  const actionsHtml = refEditMode
+    ? `<div class="ref-section-actions">
+        <button class="ref-section-action-btn" onclick="openAddEntry('${id}')" title="Add entry">＋</button>
+        ${isUserSection ? `<button class="ref-section-action-btn" style="color:#c0392b;" onclick="deleteRefSection('${id}')" title="Delete section">🗑</button>` : ''}
+       </div>`
+    : '';
+
+  const headerHtml = `<div class="ref-section-row">
+    <div class="ref-section-title">${escHtml(fullTitle)}</div>
+    ${actionsHtml}
+  </div>`;
+
+  // Custom entries
+  let customHtml = '';
+  customEntries.forEach((e, i) => {
+    const deleteBtn = refEditMode
+      ? `<button class="ref-delete-entry" onclick="deleteRefEntry('${id}',${i})" title="Delete">✕</button>`
+      : '';
+    customHtml += `<div class="ref-custom-card">
+      ${deleteBtn}
+      <div class="ref-card-title">${escHtml(e.title)}</div>
+      <div class="ref-card-body">${escHtml(e.body)}</div>
+    </div>`;
+  });
+
+  // Add entry form (hidden by default)
+  const addFormHtml = `<div class="ref-add-form" id="add-form-${id}">
+    <input class="ref-add-input" id="add-title-${id}" placeholder="Title (e.g. Vinegar — 1 tbsp)" type="text">
+    <textarea class="ref-add-ta" id="add-body-${id}" placeholder="Description or substitution…"></textarea>
+    <div class="ref-add-row">
+      <button class="ref-add-save" onclick="saveRefEntry('${id}')">Save</button>
+      <button class="ref-add-cancel" onclick="closeAddEntry('${id}')">Cancel</button>
+    </div>
+  </div>`;
+
+  return `<div class="ref-section" id="ref-sec-${id}">
+    ${headerHtml}
+    ${builtinHtml}
+    ${customHtml}
+    ${addFormHtml}
+  </div>`;
+}
+
+/* ── Add / delete custom entries ── */
+function openAddEntry(secId) {
+  document.getElementById('add-form-' + secId).classList.add('open');
+  document.getElementById('add-title-' + secId).focus();
+}
+function closeAddEntry(secId) {
+  const form = document.getElementById('add-form-' + secId);
+  form.classList.remove('open');
+  document.getElementById('add-title-' + secId).value = '';
+  document.getElementById('add-body-' + secId).value  = '';
+}
+function saveRefEntry(secId) {
+  const title = document.getElementById('add-title-' + secId).value.trim();
+  const body  = document.getElementById('add-body-'  + secId).value.trim();
+  if (!title) { showToast('Please enter a title'); return; }
+  if (!body)  { showToast('Please enter a description'); return; }
+
+  // Is this a user section or built-in?
+  const userSecs = loadRefSections();
+  const userSec  = userSecs.find(s => s.id === secId);
+  if (userSec) {
+    userSec.entries = userSec.entries || [];
+    userSec.entries.push({ title, body });
+    saveRefSections(userSecs);
+  } else {
+    const custom = loadRefCustom();
+    custom[secId] = custom[secId] || [];
+    custom[secId].push({ title, body });
+    saveRefCustom(custom);
+  }
+  renderRefBody();
+  showToast('Entry added!');
+}
+function deleteRefEntry(secId, idx) {
+  const userSecs = loadRefSections();
+  const userSec  = userSecs.find(s => s.id === secId);
+  if (userSec) {
+    userSec.entries.splice(idx, 1);
+    saveRefSections(userSecs);
+  } else {
+    const custom = loadRefCustom();
+    if (custom[secId]) { custom[secId].splice(idx, 1); saveRefCustom(custom); }
+  }
+  renderRefBody();
+}
+
+/* ── Add / delete custom sections ── */
+function openAddSection() {
+  const emoji = prompt('Section emoji (optional, e.g. 🥩):') || '📝';
+  const title = prompt('Section title:');
+  if (!title || !title.trim()) return;
+  const id   = 'user_' + Date.now();
+  const secs = loadRefSections();
+  secs.push({ id, emoji: emoji.trim(), title: title.trim(), entries: [] });
+  saveRefSections(secs);
+  renderRefBody();
+  showToast('Section added!');
+}
+function deleteRefSection(secId) {
+  if (!confirm('Delete this section and all its entries?')) return;
+  const secs = loadRefSections().filter(s => s.id !== secId);
+  saveRefSections(secs);
+  renderRefBody();
+  showToast('Section deleted');
+}
+
+/* ═══════════════════════════════════════════════════
+   EDIT TAB
+═══════════════════════════════════════════════════ */
+let editingId = null;
+
+function onEditCatSelectChange() {
+  const cat = document.getElementById('edit-cat-select').value;
+  const filterWrap = document.getElementById('edit-subcat-filter-wrap');
+  const filterSel  = document.getElementById('edit-subcat-filter');
+  if (hasSubcats(cat)) {
+    filterSel.innerHTML = '<option value="">— All sub-categories —</option>' +
+      SUBCATEGORIES[cat].map(s=>`<option value="${s}">${s}</option>`).join('');
+    filterWrap.classList.add('visible');
+  } else {
+    filterWrap.classList.remove('visible');
+    filterSel.innerHTML = '';
+  }
+  loadEditList();
+}
+
+let reorderMode = false;
+let reorderCat = null, reorderSub = null;
+
+function loadEditList() {
+  const cat       = document.getElementById('edit-cat-select').value;
+  const subFilter = document.getElementById('edit-subcat-filter').value;
+  const listEl    = document.getElementById('edit-recipe-list');
+  const toggleBtn = document.getElementById('reorder-toggle-btn');
+  const hintEl    = document.getElementById('reorder-hint');
+  reorderMode = false;
+  toggleBtn.classList.remove('active');
+  listEl.classList.remove('reorder-mode');
+  if (!cat) { listEl.innerHTML = ''; toggleBtn.style.display='none'; hintEl.style.display='none'; return; }
+
+  // For subcategorised cats, only list within the chosen subcat
+  const sub = (hasSubcats(cat) && subFilter) ? subFilter : null;
+  let recs;
+  if (hasSubcats(cat) && !subFilter) {
+    // No subcat chosen — list all, grouped by subcat, alpha within each
+    recs = sortedRecipesForCat(cat);
+  } else if (sub) {
+    recs = sortedRecipesInSubcat(cat, sub);
+  } else {
+    recs = sortedRecipes(cat, null);
+  }
+
+  reorderCat = cat;
+  reorderSub = sub;
+
+  if (!recs.length) {
+    listEl.innerHTML = '<div class="empty-cat" style="padding:10px 2px">No recipes in this category</div>';
+    toggleBtn.style.display='none'; hintEl.style.display='none'; return;
+  }
+
+  toggleBtn.style.display = 'block';
+  renderEditItems(recs, listEl, cat);
+}
+
+function renderEditItems(recs, listEl, cat) {
+  listEl.innerHTML = recs.map(r => {
+    const sub = r.subcategory ? `<span style="font-size:0.75rem;color:var(--ink-light);margin-left:6px">· ${escHtml(r.subcategory)}</span>` : '';
+    return `<div class="edit-recipe-item" data-id="${r.id}" onclick="editItemClick(event,${r.id})">
+      <span class="drag-handle" title="Drag to reorder">☰</span>
+      <span class="eri-name">${escHtml(r.title)}${sub}</span>
+      <span class="eri-arrow">›</span>
+    </div>`;
+  }).join('');
+  attachDragHandlers(listEl);
+}
+
+function editItemClick(e, id) {
+  if (reorderMode) return; // disable tap-to-edit while reordering
+  openEditForm(id);
+}
+
+function toggleReorderMode() {
+  const listEl    = document.getElementById('edit-recipe-list');
+  const toggleBtn = document.getElementById('reorder-toggle-btn');
+  const hintEl    = document.getElementById('reorder-hint');
+  reorderMode = !reorderMode;
+  listEl.classList.toggle('reorder-mode', reorderMode);
+  toggleBtn.classList.toggle('active', reorderMode);
+  hintEl.style.display = reorderMode ? 'block' : 'none';
+}
+
+/* ── Drag-to-reorder (touch + mouse) ── */
+let dragSrcEl = null;
+function attachDragHandlers(listEl) {
+  // Desktop drag
+  listEl.querySelectorAll('.edit-recipe-item').forEach(item => {
+    item.setAttribute('draggable', 'true');
+    item.addEventListener('dragstart', e => {
+      if (!reorderMode) { e.preventDefault(); return; }
+      dragSrcEl = item;
+      item.classList.add('dragging');
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      listEl.querySelectorAll('.edit-recipe-item').forEach(i => i.classList.remove('drag-over'));
+      persistReorder(listEl);
+    });
+    item.addEventListener('dragover', e => {
+      if (!reorderMode) return;
+      e.preventDefault();
+      listEl.querySelectorAll('.edit-recipe-item').forEach(i => i.classList.remove('drag-over'));
+      item.classList.add('drag-over');
+    });
+    item.addEventListener('drop', e => {
+      if (!reorderMode || !dragSrcEl || dragSrcEl === item) return;
+      e.preventDefault();
+      const items = [...listEl.querySelectorAll('.edit-recipe-item')];
+      const fromIdx = items.indexOf(dragSrcEl);
+      const toIdx   = items.indexOf(item);
+      if (fromIdx < toIdx) item.after(dragSrcEl);
+      else item.before(dragSrcEl);
+    });
+  });
+
+  // Touch drag (long-press handle → drag)
+  let touchDragEl = null, touchClone = null, startY = 0, startScrollTop = 0;
+  listEl.querySelectorAll('.drag-handle').forEach(handle => {
+    handle.addEventListener('touchstart', e => {
+      if (!reorderMode) return;
+      touchDragEl = handle.closest('.edit-recipe-item');
+      const touch = e.touches[0];
+      startY = touch.clientY;
+      startScrollTop = listEl.scrollTop;
+      touchDragEl.classList.add('dragging');
+      e.preventDefault();
+    }, { passive: false });
+    handle.addEventListener('touchmove', e => {
+      if (!touchDragEl) return;
+      e.preventDefault();
+      const touch    = e.touches[0];
+      const deltaY   = touch.clientY - startY;
+      const items    = [...listEl.querySelectorAll('.edit-recipe-item:not(.dragging)')];
+      listEl.querySelectorAll('.edit-recipe-item').forEach(i => i.classList.remove('drag-over'));
+      // Find the item under the touch point
+      const rect = listEl.getBoundingClientRect();
+      const relY  = touch.clientY - rect.top + listEl.scrollTop;
+      let target  = null;
+      items.forEach(item => {
+        const ir = item.getBoundingClientRect();
+        const iry = ir.top - rect.top + listEl.scrollTop;
+        if (relY >= iry && relY <= iry + ir.height) target = item;
+      });
+      if (target) target.classList.add('drag-over');
+    }, { passive: false });
+    handle.addEventListener('touchend', e => {
+      if (!touchDragEl) return;
+      const touch = e.changedTouches[0];
+      const items = [...listEl.querySelectorAll('.edit-recipe-item:not(.dragging)')];
+      const rect  = listEl.getBoundingClientRect();
+      const relY  = touch.clientY - rect.top + listEl.scrollTop;
+      let target  = null;
+      items.forEach(item => {
+        const ir  = item.getBoundingClientRect();
+        const iry = ir.top - rect.top + listEl.scrollTop;
+        if (relY >= iry && relY <= iry + ir.height) target = item;
+      });
+      if (target && target !== touchDragEl) {
+        const allItems = [...listEl.querySelectorAll('.edit-recipe-item')];
+        const fromIdx  = allItems.indexOf(touchDragEl);
+        const toIdx    = allItems.indexOf(target);
+        if (fromIdx < toIdx) target.after(touchDragEl);
+        else target.before(touchDragEl);
+      }
+      touchDragEl.classList.remove('dragging');
+      listEl.querySelectorAll('.edit-recipe-item').forEach(i => i.classList.remove('drag-over'));
+      persistReorder(listEl);
+      touchDragEl = null;
+    });
+  });
+}
+
+function persistReorder(listEl) {
+  const ids = [...listEl.querySelectorAll('.edit-recipe-item')].map(el => parseInt(el.dataset.id));
+  if (reorderCat) {
+    saveSortOrderForGroup(reorderCat, reorderSub, ids);
+  }
+}
+
+function onEditCatChange() {
+  showSubcatWrap(
+    document.getElementById('edit-subcat-wrap'),
+    document.getElementById('edit-subcat'),
+    document.getElementById('edit-cat').value, ''
+  );
+  updateEditPreview();
+}
+
+function openEditForm(id) {
+  const r = recipes.find(x => x.id === id);
+  if (!r) return;
+  editingId = id;
+  document.getElementById('edit-title').value       = r.title;
+  document.getElementById('edit-cat').value         = r.category;
+  document.getElementById('edit-ingredients').value = r.ingredients;
+  document.getElementById('edit-directions').value  = r.directions;
+  document.getElementById('edit-notes').value       = r.notes || '';
+  showSubcatWrap(
+    document.getElementById('edit-subcat-wrap'),
+    document.getElementById('edit-subcat'),
+    r.category, r.subcategory || ''
+  );
+  document.getElementById('edit-list-wrap').style.display = 'none';
+  document.getElementById('edit-form-wrap').style.display = 'block';
+  updateEditPreview();
+}
+
+function closeEditForm() {
+  editingId = null;
+  document.getElementById('edit-list-wrap').style.display = 'block';
+  document.getElementById('edit-form-wrap').style.display = 'none';
+  document.getElementById('edit-preview').innerHTML = '';
+  document.getElementById('edit-subcat-wrap').classList.remove('visible');
+}
+
+function confirmDelete() {
+  if (!editingId) return;
+  const r = recipes.find(x => x.id === editingId);
+  if (!r) return;
+  document.getElementById('delete-recipe-name').textContent = r.title;
+  document.getElementById('delete-overlay').classList.add('open');
+}
+function closeDeleteModal() {
+  document.getElementById('delete-overlay').classList.remove('open');
+}
+function deleteOverlayClose(e) {
+  if (e.target === document.getElementById('delete-overlay')) closeDeleteModal();
+}
+function deleteRecipe() {
+  if (!editingId) return;
+  recipes = recipes.filter(r => r.id !== editingId);
+  save();
+  closeDeleteModal();
+  closeEditForm();
+  onEditCatSelectChange();
+  showToast('Recipe deleted');
+}
+
+function saveEdit() {
+  if (!editingId) return;
+  const title  = document.getElementById('edit-title').value.trim();
+  const cat    = document.getElementById('edit-cat').value;
+  const subcat = hasSubcats(cat) ? document.getElementById('edit-subcat').value : '';
+  const ing    = document.getElementById('edit-ingredients').value.trim();
+  const dir    = document.getElementById('edit-directions').value.trim();
+  const notes  = document.getElementById('edit-notes').value.trim();
+
+  if (!title) { showToast('Title required'); return; }
+  if (hasSubcats(cat) && !subcat) { showToast('Please choose a sub-category'); return; }
+  if (!ing)   { showToast('Ingredients required'); return; }
+  if (!dir)   { showToast('Directions required'); return; }
+
+  const idx = recipes.findIndex(r => r.id === editingId);
+  if (idx === -1) return;
+  recipes[idx] = { id: editingId, title, category: cat, subcategory: subcat, ingredients: ing, directions: dir, notes };
+  save();
+
+  document.getElementById('edit-cat-select').value = cat;
+  onEditCatSelectChange();
+  closeEditForm();
+  showToast('Saved!');
+}
+
+/* ═══════════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════════ */
+function escHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ═══════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════ */
+renderToc();
+updateAddPreview();
+</script>
+</body>
+</html>
